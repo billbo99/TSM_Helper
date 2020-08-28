@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.0.4
+Date: 2020-08-28
+  Changes:
+    - Add player setting to allow the toggle ON/OFF verbose station names when renaming
+  Bugfixes:
+    - Remote.call to train_pubsub could fail, wrapped it in a pcall test.
+---------------------------------------------------------------------------------------------------
 Version: 0.0.3
 Date: 2020-08-28
   Bugfixes:

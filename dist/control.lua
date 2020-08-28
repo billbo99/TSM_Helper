@@ -56,7 +56,18 @@ local function OnStringTranslated(e)
 end
 
 local function AddStationToPriorities(station, green_name, red_name)
-    local tsm_priorities = remote.call("TSM-API", "list_priorities", station.surface.name)
+    local tsm_priorities = nil -- remote.call("TSM-API", "list_priorities", station.surface.name)
+    if
+        pcall(
+            function()
+                remote.call("TSM-API", "list_priorities", station.surface.name)
+            end
+        )
+     then
+        tsm_priorities = remote.call("TSM-API", "list_priorities", station.surface.name)
+    else
+        tsm_priorities = {}
+    end
 
     if green_name and not red_name then
         red_name = green_name
@@ -133,7 +144,7 @@ local function AddStationToPriorities(station, green_name, red_name)
     end
 end
 
-local function RenameStation(station)
+local function RenameStation(station, player)
     local red_signal, green_signal, red_icon, green_icon, green_text, red_text, red_name, green_name
 
     local cb = station.get_or_create_control_behavior()
@@ -164,20 +175,27 @@ local function RenameStation(station)
         end
     end
 
-    if (green_icon and (red_icon == green_icon or not red_icon)) or (red_icon and (red_icon == green_icon or not green_icon)) then
-        local text = green_text or red_text or nil
-        local icon = green_icon or red_icon
-        if text then
-            station.backer_name = "Supply " .. icon .. " (" .. text .. ")"
-        else
-            station.backer_name = "Supply " .. icon
+    if green_icon or red_icon then
+        if player and not settings.get_player_settings(player)["TH_verbose_station_names"].value then
+            green_text = nil
+            red_text = nil
         end
-    elseif green_icon and red_icon and red_icon ~= green_icon then
-        station.backer_name = "Supply " .. green_icon .. red_icon .. " (" .. green_text .. ")"
-    end
 
-    if station and station.valid and green_name and red_name then
-        AddStationToPriorities(station, green_name, red_name)
+        if (green_icon and (red_icon == green_icon or not red_icon)) or (red_icon and (red_icon == green_icon or not green_icon)) then
+            local text = green_text or red_text or nil
+            local icon = green_icon or red_icon
+            if text then
+                station.backer_name = "Supply " .. icon .. " (" .. text .. ")"
+            else
+                station.backer_name = "Supply " .. icon
+            end
+        elseif green_icon and red_icon and red_icon ~= green_icon then
+            station.backer_name = "Supply " .. green_icon .. red_icon .. " (" .. green_text .. ")"
+        end
+
+        if station and station.valid and (green_name or red_name) then
+            AddStationToPriorities(station, green_name, red_name)
+        end
     end
 end
 
@@ -215,12 +233,20 @@ local function OnEntityRenamed(e)
     if e.entity.name ~= "subscriber-train-stop" or e.by_script then
         return
     end
-    RenameStation(e.entity)
+    local player = nil
+    if e.player_index then
+        player = game.players[e.player_index]
+    end
+    RenameStation(e.entity, player)
 end
 
 local function OnPlayerRotatedEntity(e)
     if e.entity and e.entity.name == "subscriber-train-stop" then
-        RenameStation(e.entity)
+        local player = nil
+        if e.player_index then
+            player = game.players[e.player_index]
+        end
+        RenameStation(e.entity, player)
     end
 end
 
