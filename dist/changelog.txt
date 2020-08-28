@@ -1,0 +1,18 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.0.3
+Date: 2020-08-28
+  Bugfixes:
+    - On rename a station when nothing on the signal wire would cause a crash
+---------------------------------------------------------------------------------------------------
+Version: 0.0.2
+Date: 2020-08-22
+  Bugfixes:
+    - Fixed when renaming a "Supply Station" with no signals attached.
+---------------------------------------------------------------------------------------------------
+Version: 0.0.1
+Date: 13/Aug/2020
+  Features:
+    - First cut
+  Changes:
+  Bugfixes:
+  Info:
