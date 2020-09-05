@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2020-09-05
+  Changes:
+    - Add option to allow signal wire to be used to rename a loading station.
+    - It will this naming standard ..  Load {icon} ({icon_name}) X .. where X starts at 1 and increments to the next un-used number
+---------------------------------------------------------------------------------------------------
 Version: 0.0.4
 Date: 2020-08-28
   Changes:
