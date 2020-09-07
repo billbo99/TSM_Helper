@@ -291,8 +291,10 @@ local function OnPlayerJoinedGame(e)
 end
 
 local function OnPlayerLeftGame(e)
-    if translation.is_translating(e.player_index) then
-        translation.cancel(event.player_index)
+    if e.player_index then
+        if translation.is_translating(e.player_index) then
+            translation.cancel(e.player_index)
+        end
     end
 end
 
