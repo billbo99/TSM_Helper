@@ -198,7 +198,11 @@ local function RenameStation(station, player)
                 station_backer_name = station_prefix .. " " .. icon
             end
         elseif green_icon and red_icon and red_icon ~= green_icon then
-            station_backer_name = station_prefix .. " " .. green_icon .. red_icon .. " (" .. green_text .. ")"
+            if green_text then
+                station_backer_name = station_prefix .. " " .. green_icon .. red_icon .. " (" .. green_text .. ")"
+            else
+                station_backer_name = station_prefix .. " " .. green_icon .. red_icon
+            end
         end
 
         if station.name == "train-stop" then
