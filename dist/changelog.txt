@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.0
+Date: 2020-09-11
+  Features:
+    - Added a Train Staion Counter, link a wire to the combinator and a train station,  it will give you a signal for how many stations have that same name, and how many trains have that station in its schedule.   Could be useful when your trying to work out how many extra trains are needed to fill all your supply stations.
+---------------------------------------------------------------------------------------------------
 Version: 1.0.2
 Date: 2020-09-09
   Bugfixes:

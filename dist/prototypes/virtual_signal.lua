@@ -14,17 +14,28 @@ data:extend(
 
 data:extend(
     {
-        -- {
-        --     type = "virtual-signal",
-        --     name = "TCS_Remove_Schedule",
-        --     icons = {
-        --         {icon = mod .. "blank64.png", icon_size = 64},
-        --         {icon = mod .. "train-stop.png", icon_size = 64},
-        --         {icon = mod .. "minus.png", icon_size = 64, scale = 0.25, shift = {4, 4}}
-        --     },
-        --     subgroup = "TrainCircuitScheduler",
-        --     order = "aa"
-        -- },
+        {
+            type = "virtual-signal",
+            name = "TH_TrainStaionCount",
+            icons = {
+                {icon = mod .. "blank64.png", icon_size = 64},
+                {icon = mod .. "train-stop.png", icon_size = 64},
+                {icon = mod .. "signal_C.png", icon_size = 64, scale = 0.25, shift = {4, 4}}
+            },
+            subgroup = "TrainCircuitScheduler",
+            order = "aa"
+        },
+        {
+            type = "virtual-signal",
+            name = "TH_TrainCount",
+            icons = {
+                {icon = mod .. "blank64.png", icon_size = 64},
+                {icon = mod .. "locomotive.png", icon_size = 64},
+                {icon = mod .. "signal_C.png", icon_size = 64, scale = 0.25, shift = {4, 4}}
+            },
+            subgroup = "TrainCircuitScheduler",
+            order = "ab"
+        },
         -- {
         --     type = "virtual-signal",
         --     name = "TCS_Add_Schedule",

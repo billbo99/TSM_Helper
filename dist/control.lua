@@ -5,6 +5,14 @@ local player_data = require("raiguard.player-data")
 local global_data = require("raiguard.global-data")
 local on_tick = require("raiguard.on-tick")
 
+local function count_table(table_to_count)
+    local count = 0
+    for _ in pairs(table_to_count) do
+        count = count + 1
+    end
+    return count
+end
+
 local function parse_signal_to_rich_text(signal_data)
     local text_type = signal_data.type
     if text_type == "virtual" then
@@ -15,6 +23,11 @@ local function parse_signal_to_rich_text(signal_data)
 end
 
 local function InitState()
+    global.TrainStaionCounters = global.TrainStaionCounters or {}
+    global.Queue = global.Queue or {}
+    global.Trains = global.Trains or {}
+    global.Stations = global.Stations or {}
+    global.TrainStaions = global.TrainStaions or {}
     global.SupplyStations = global.SupplyStations or {}
     global.entityTranslations = global.entityTranslations or {}
 
@@ -26,6 +39,13 @@ local function InitState()
             end
         end
     end
+end
+
+local function ScheduleFutureJob(action)
+    if global.Queue[game.tick + 10] == nil then
+        global.Queue[game.tick + 10] = {}
+    end
+    table.insert(global.Queue[game.tick + 10], action)
 end
 
 local function OnStringTranslated(e)
@@ -52,6 +72,203 @@ local function OnStringTranslated(e)
         local player_table = global.players[e.player_index]
         player_table.flags.translate_on_join = false
         player_table.flags.show_message_after_translation = false
+    end
+end
+
+local function RegisterEntity(entity)
+    local vtype = nil
+    if type(entity) == "table" then
+        if type(rawget(entity, "__self")) == "userdata" and getmetatable(entity) == "private" then
+            vtype = entity.object_name
+        end
+    end
+
+    local rsp = {entity = entity}
+
+    if vtype ~= "LuaTrain" and entity.backer_name then
+        rsp.backer_name = entity.backer_name
+    end
+
+    return rsp
+end
+
+local function rescan(e, table_to_update, entity_type, entity_name)
+    for _, surface in pairs(game.surfaces) do
+        if entity_type == "train" then
+            for _, train in pairs(surface.get_trains()) do
+                table_to_update[train.id] = RegisterEntity(train)
+            end
+        else
+            for _, entity in pairs(surface.find_entities_filtered({type = entity_type, name = entity_name})) do
+                table_to_update[entity.unit_number] = RegisterEntity(entity)
+            end
+        end
+    end
+end
+
+local function UpdateTrainStation(station)
+    local updated_stations = {}
+    local next = next
+    if not global.Stations[station.backer_name] then
+        global.Stations[station.backer_name] = {entities = {}, trains_using_station = {}}
+    end
+    global.Stations[station.backer_name].entities[station.unit_number] = station
+    -- if next(global.Stations[station.backer_name].trains_using_station) == nil then
+    if updated_stations[station.backer_name] == nil then
+        updated_stations[station.backer_name] = true
+        for _, train in pairs(station.get_train_stop_trains()) do
+            global.Stations[station.backer_name].trains_using_station[train.id] = train
+        end
+        for idx, train in pairs(global.Stations[station.backer_name].trains_using_station) do
+            if not train.valid then
+                global.Stations[station.backer_name].trains_using_station[idx] = nil
+            end
+        end
+    end
+end
+
+local function RescanTrainStations(e)
+    rescan(e, global.TrainStaions, "train-stop")
+    for _, row in pairs(global.TrainStaions) do
+        for _, station in pairs(global.Stations) do
+            for idx, entity in pairs(station.entities) do
+                if not entity.valid then
+                    station.entities[idx] = nil
+                end
+            end
+        end
+        UpdateTrainStation(row.entity)
+    end
+end
+
+local function RescanTrains(e)
+    rescan(e, global.Trains, "train")
+end
+
+local function UpdateTrainStaionCounter(entity)
+    entity.operable = false
+    for _, ccd in pairs(entity.circuit_connection_definitions) do
+        if ccd.target_entity and ccd.target_entity.type == "train-stop" then
+            local station_name = ccd.target_entity.backer_name
+            local station = global.Stations[station_name]
+            local cb = entity.get_control_behavior()
+            global.TrainStaionCounters[entity.unit_number].signals = {
+                {signal = {type = "virtual", name = "TH_TrainStaionCount"}, count = count_table(station.entities)},
+                {signal = {type = "virtual", name = "TH_TrainCount"}, count = count_table(station.trains_using_station)}
+            }
+
+            -- No of stations with this name
+            cb.set_signal(1, global.TrainStaionCounters[entity.unit_number].signals[1])
+            -- No of trains using this station
+            cb.set_signal(2, global.TrainStaionCounters[entity.unit_number].signals[2])
+        end
+    end
+end
+
+local function RescanTrainStaionCounters(e)
+    rescan(e, global.TrainStaionCounters, "constant-combinator", "train-staion-counter")
+    for _, row in pairs(global.TrainStaionCounters) do
+        UpdateTrainStaionCounter(row.entity)
+    end
+end
+
+local function perform_rescan(e)
+    -- keep in order
+    RescanTrainStations(e)
+    RescanTrains(e)
+    RescanTrainStaionCounters(e)
+end
+
+local function entity_built(entity, table_to_update)
+    if entity and entity.valid then
+        if entity.object_name == "LuaTrain" then
+            table_to_update[entity.id] = RegisterEntity(entity)
+        else
+            table_to_update[entity.unit_number] = RegisterEntity(entity)
+        end
+    end
+end
+
+local function entity_removed(entity, table_to_update)
+    if entity and entity.valid then
+        if entity.object_name == "LuaTrain" and table_to_update[entity.id] then
+            table_to_update[entity.id] = nil
+        elseif table_to_update[entity.unit_number] then
+            table_to_update[entity.unit_number] = nil
+        end
+    end
+end
+
+local function OnEntityRemoved(e)
+    local flag = false
+    local entity = e.created_entity or e.entity or e.destination or nil
+    if entity and entity.valid then
+        if entity.type == "train-stop" then
+            entity_removed(entity, global.TrainStaions)
+            flag = true
+        elseif entity.type == "locomotive" or entity.type == "cargo-wagon" or entity.type == "fluid-wagon" or entity.type == "artillery-wagon" then
+            if count_table(entity.train.carriages) == 1 and entity.train.carriages[1] == entity then
+                -- last part of train
+                entity_removed(entity.train, global.Trains)
+                flag = true
+            end
+        elseif entity.type == "constant-combinator" and entity.name == "train-staion-counter" then
+            entity_removed(entity, global.TrainStaionCounters)
+            flag = true
+        else
+            log(entity.type)
+        end
+    end
+    if flag then
+        ScheduleFutureJob("perform_rescan")
+    end
+end
+
+local function OnBuiltEntity(e)
+    local flag = false
+    local entity = e.created_entity or e.entity or e.destination or nil
+    if entity and entity.valid then
+        if entity.type == "train-stop" then
+            entity_built(entity, global.TrainStaions)
+            flag = true
+        elseif entity.type == "locomotive" or entity.type == "cargo-wagon" or entity.type == "fluid-wagon" or entity.type == "artillery-wagon" then
+            entity_built(entity.train, global.Trains)
+            flag = true
+        elseif entity.type == "constant-combinator" and entity.name == "train-staion-counter" then
+            entity.operable = false
+            entity_built(entity, global.TrainStaionCounters)
+            flag = true
+        else
+            log(entity.type)
+        end
+    end
+    if flag then
+        perform_rescan(e)
+    end
+end
+
+local function OnTrainScheduleChanged(e)
+    for _, record in pairs(e.train.schedule.records) do
+        if record.station and global.Stations[record.station] then
+            for _, station in pairs(global.Stations[record.station].entities) do
+                UpdateTrainStation(station)
+            end
+        end
+    end
+    RescanTrainStaionCounters(e)
+end
+
+local function OnStationPollPeriod(e)
+    if global.TrainStaionCounters then
+        for idx, row in pairs(global.TrainStaionCounters) do
+            if row.entity.valid then
+                if row.signals == nil then
+                    UpdateTrainStaionCounter(row.entity)
+                end
+            else
+                global.TrainStaionCounters[idx] = nil
+            end
+        end
     end
 end
 
@@ -227,6 +444,19 @@ local function RenameStation(station, player)
     end
 end
 
+local function CheckForWork(e)
+    for scheduled_tick, jobs in pairs(global.Queue) do
+        if scheduled_tick < e.tick then
+            for _, job in pairs(jobs) do
+                if job == "perform_rescan" then
+                    perform_rescan(e)
+                end
+            end
+            global.Queue[scheduled_tick] = nil
+        end
+    end
+end
+
 local function OnStartup()
     translation.init()
     global_data.init()
@@ -236,10 +466,11 @@ local function OnStartup()
     InitState()
 end
 
-local function OnConfigurationChanged()
+local function OnConfigurationChanged(e)
     InitState()
     translation.init()
     on_tick.update()
+    perform_rescan()
 
     global_data.build_prototypes()
 
@@ -261,6 +492,9 @@ local function OnEntityRenamed(e)
     if (e.entity.name ~= "subscriber-train-stop" and e.entity.name ~= "train-stop") or e.by_script then
         return
     end
+
+    ScheduleFutureJob("perform_rescan")
+
     local player = nil
     if e.player_index then
         player = game.players[e.player_index]
@@ -304,7 +538,8 @@ end
 
 event.on_init(OnStartup)
 event.on_load(OnLoad)
--- event.on_nth_tick(60 * 60, OnNthTick)
+event.on_nth_tick(20, CheckForWork)
+event.on_nth_tick(settings.startup["TH_station_poll_period"].value, OnStationPollPeriod)
 event.on_configuration_changed(OnConfigurationChanged)
 event.on_string_translated(OnStringTranslated)
 event.on_entity_renamed(OnEntityRenamed)
@@ -312,3 +547,31 @@ event.on_player_joined_game(OnPlayerJoinedGame)
 event.on_player_left_game(OnPlayerLeftGame)
 event.on_player_created(OnPlayerCreated)
 event.on_player_rotated_entity(OnPlayerRotatedEntity)
+
+local filters = {
+    {filter = "type", type = "constant-combinator", name = "train-staion-counter"},
+    {filter = "type", type = "locomotive"},
+    {filter = "type", type = "cargo-wagon"},
+    {filter = "type", type = "fluid-wagon"},
+    {filter = "type", type = "artillery-wagon"},
+    {filter = "type", type = "train-stop"}
+}
+
+script.on_event(defines.events.on_built_entity, OnBuiltEntity, filters)
+script.on_event(defines.events.on_entity_cloned, OnBuiltEntity, filters)
+script.on_event(defines.events.on_robot_built_entity, OnBuiltEntity, filters)
+script.on_event(defines.events.script_raised_built, OnBuiltEntity, filters)
+script.on_event(defines.events.script_raised_revive, OnBuiltEntity, filters)
+script.on_event(defines.events.on_entity_died, OnEntityRemoved, filters)
+script.on_event(defines.events.on_player_mined_entity, OnEntityRemoved, filters)
+script.on_event(defines.events.on_robot_mined_entity, OnEntityRemoved, filters)
+script.on_event(defines.events.script_raised_destroy, OnEntityRemoved, filters)
+
+script.on_event(defines.events.on_chunk_deleted, perform_rescan)
+script.on_event(defines.events.on_surface_cleared, perform_rescan)
+script.on_event(defines.events.on_surface_deleted, perform_rescan)
+
+-- script.on_event(defines.events.on_train_created, OnTrainCreated)
+script.on_event(defines.events.on_train_schedule_changed, OnTrainScheduleChanged)
+
+commands.add_command("th_rescan", "Forces a rescan of enties TSM Helper is monitoring", perform_rescan)
