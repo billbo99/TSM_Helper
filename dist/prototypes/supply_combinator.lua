@@ -34,4 +34,5 @@ recipe.name = "train-staion-counter"
 recipe.result = recipe.name
 data:extend({recipe})
 
-local technology = data.raw.technology
+local technology = data.raw.technology["train-manager"]
+table.insert(technology.effects, {recipe = "train-staion-counter", type = "unlock-recipe"})

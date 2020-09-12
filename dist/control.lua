@@ -122,6 +122,10 @@ local function UpdateTrainStation(station)
         for idx, train in pairs(global.Stations[station.backer_name].trains_using_station) do
             if not train.valid then
                 global.Stations[station.backer_name].trains_using_station[idx] = nil
+            else
+                if train.schedule == nil then
+                    global.Stations[station.backer_name].trains_using_station[idx] = nil
+                end
             end
         end
     end
@@ -248,12 +252,22 @@ local function OnBuiltEntity(e)
 end
 
 local function OnTrainScheduleChanged(e)
-    for _, record in pairs(e.train.schedule.records) do
-        if record.station and global.Stations[record.station] then
-            for _, station in pairs(global.Stations[record.station].entities) do
-                UpdateTrainStation(station)
+    if e.train.schedule then
+        for _, station in pairs(global.Stations) do
+            if station.trains_using_station[e.train.id] then
+                station.trains_using_station[e.train.id] = nil
             end
         end
+
+        for _, record in pairs(e.train.schedule.records) do
+            if record.station and global.Stations[record.station] then
+                for _, station in pairs(global.Stations[record.station].entities) do
+                    UpdateTrainStation(station)
+                end
+            end
+        end
+    else
+        ScheduleFutureJob("perform_rescan")
     end
     RescanTrainStaionCounters(e)
 end
@@ -469,6 +483,21 @@ local function OnStartup()
 end
 
 local function OnConfigurationChanged(e)
+    if e.mod_changes and e.mod_changes["TSM_Helper"] then
+        for index, force in pairs(game.forces) do
+            local recipes = force.recipes
+            local tech = force.technologies["train-manager"]
+            if tech.researched then
+                for _, effect in pairs(tech.effects) do
+                    if effect.type == "unlock-recipe" and effect.recipe == "train-staion-counter" then
+                        recipes[effect.recipe].enabled = true
+                        recipes[effect.recipe].reload()
+                    end
+                end
+            end
+        end
+    end
+
     InitState()
     translation.init()
     on_tick.update()

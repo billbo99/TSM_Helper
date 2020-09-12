@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.2
+Date: 2020-09-12
+  Bugfixes:
+    - control.lua:251: attempt to index field 'schedule' (a nil value)
+    - research not added to create combinator
+---------------------------------------------------------------------------------------------------
 Version: 1.1.1
 Date: 2020-09-12
   Changes:
