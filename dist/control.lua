@@ -152,7 +152,7 @@ local function RenameStation(station, player)
         local red_wire = cb.get_circuit_network(defines.wire_type.red).signals
         if red_wire then
             for _, cell in pairs(red_wire) do
-                if cell.signal and not Func.starts_with(cell.signal.name, "TCS_") then
+                if cell.signal and cell.signal.type ~= "virtual" then
                     red_signal = cell.signal
                     red_name = red_signal.name
                     red_icon = parse_signal_to_rich_text(red_signal)
@@ -165,7 +165,7 @@ local function RenameStation(station, player)
         local green_wire = cb.get_circuit_network(defines.wire_type.green).signals
         if green_wire then
             for _, cell in pairs(green_wire) do
-                if cell.signal and not Func.starts_with(cell.signal.name, "TCS_") then
+                if cell.signal and cell.signal.type ~= "virtual" then
                     green_signal = cell.signal
                     green_name = green_signal.name
                     green_icon = parse_signal_to_rich_text(green_signal)

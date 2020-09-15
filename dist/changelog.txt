@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.2.0
+Date: 2020-09-15
+  Changes:
+    - Had to remove train counter as it didnt like big bases, was pushing UPS to double digits.   Need to make a side branch and work on that some more.
+---------------------------------------------------------------------------------------------------
 Version: 0.0.4
 Date: 2020-08-28
   Changes:
