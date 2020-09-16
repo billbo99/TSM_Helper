@@ -181,19 +181,47 @@ local function RenameStation(station, player)
             red_text = nil
         end
 
+        local station_prefix
+        if station.name == "subscriber-train-stop" then
+            station_prefix = "Supply"
+        else
+            station_prefix = "Load"
+        end
+
+        local station_backer_name
         if (green_icon and (red_icon == green_icon or not red_icon)) or (red_icon and (red_icon == green_icon or not green_icon)) then
             local text = green_text or red_text or nil
             local icon = green_icon or red_icon
             if text then
-                station.backer_name = "Supply " .. icon .. " (" .. text .. ")"
+                station_backer_name = station_prefix .. " " .. icon .. " (" .. text .. ")"
             else
-                station.backer_name = "Supply " .. icon
+                station_backer_name = station_prefix .. " " .. icon
             end
         elseif green_icon and red_icon and red_icon ~= green_icon then
-            station.backer_name = "Supply " .. green_icon .. red_icon .. " (" .. green_text .. ")"
+            if green_text then
+                station_backer_name = station_prefix .. " " .. green_icon .. red_icon .. " (" .. green_text .. ")"
+            else
+                station_backer_name = station_prefix .. " " .. green_icon .. red_icon
+            end
         end
 
-        if station and station.valid and (green_name or red_name) then
+        if station.name == "train-stop" then
+            local station_names = {}
+            local stations = station.surface.find_entities_filtered({name = "train-stop"})
+            for _, train_stop in pairs(stations) do
+                station_names[train_stop.backer_name] = true
+            end
+
+            local index = 1
+            while station_names[station_backer_name .. " " .. tostring(index)] do
+                index = index + 1
+            end
+            station_backer_name = station_backer_name .. " " .. tostring(index)
+        end
+
+        station.backer_name = station_backer_name
+
+        if station and station.valid and station.name == "subscriber-train-stop" and (green_name or red_name) then
             AddStationToPriorities(station, green_name, red_name)
         end
     end
@@ -230,7 +258,7 @@ local function OnConfigurationChanged()
 end
 
 local function OnEntityRenamed(e)
-    if e.entity.name ~= "subscriber-train-stop" or e.by_script then
+    if (e.entity.name ~= "subscriber-train-stop" and e.entity.name ~= "train-stop") or e.by_script then
         return
     end
     local player = nil
@@ -241,7 +269,7 @@ local function OnEntityRenamed(e)
 end
 
 local function OnPlayerRotatedEntity(e)
-    if e.entity and e.entity.name == "subscriber-train-stop" then
+    if e.entity and (e.entity.name == "subscriber-train-stop" or e.entity.name == "train-stop") then
         local player = nil
         if e.player_index then
             player = game.players[e.player_index]
@@ -267,8 +295,10 @@ local function OnPlayerJoinedGame(e)
 end
 
 local function OnPlayerLeftGame(e)
-    if translation.is_translating(e.player_index) then
-        translation.cancel(event.player_index)
+    if e.player_index then
+        if translation.is_translating(e.player_index) then
+            translation.cancel(e.player_index)
+        end
     end
 end
 
