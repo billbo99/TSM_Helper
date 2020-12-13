@@ -139,7 +139,6 @@ local function AddStationToPriorities(station, green_name, red_name)
         end
     end
     if TCS_flag then
-        station.force.print(serpent.block(TCS_table))
         remote.call("TSM-API", "update_wc", green_name, red_name, TCS_table, station.surface.name)
     end
 end
@@ -176,7 +175,7 @@ local function RenameStation(station, player)
     end
 
     if green_icon or red_icon then
-        if player and not settings.get_player_settings(player)["TH_verbose_station_names"].value then
+        if settings.global["TH_verbose_station_names"].value == false then
             green_text = nil
             red_text = nil
         end
