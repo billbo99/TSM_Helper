@@ -104,6 +104,9 @@ local function AddStationToPriorities(station, green_name, red_name)
         local count = row.count
         if row.signal and row.signal.type == "virtual" and Func.starts_with(row.signal.name, "TCS_") then
             local sn = row.signal.name
+            if sn == "TCS_StationLimit" and count > 0 then
+                station.trains_limit = count
+            end
             if sn == "TCS_AND" and count > 0 then
                 TCS_table["rb_and"] = true
                 TCS_table["rb_or"] = nil
@@ -151,7 +154,10 @@ local function RenameStation(station, player)
         local red_wire = cb.get_circuit_network(defines.wire_type.red).signals
         if red_wire then
             for _, cell in pairs(red_wire) do
-                if cell.signal and cell.signal.type ~= "virtual" then
+                if cell.signal and cell.signal.name == "TCS_StationLimit" and cell.count > 0 then
+                    station.trains_limit = cell.count
+                end
+                if cell.signal and (not Func.starts_with(cell.signal.name, "TCS_")) then
                     red_signal = cell.signal
                     red_name = red_signal.name
                     red_icon = parse_signal_to_rich_text(red_signal)
@@ -164,7 +170,10 @@ local function RenameStation(station, player)
         local green_wire = cb.get_circuit_network(defines.wire_type.green).signals
         if green_wire then
             for _, cell in pairs(green_wire) do
-                if cell.signal and cell.signal.type ~= "virtual" then
+                if cell.signal and cell.signal.name == "TCS_StationLimit" and cell.count > 0 then
+                    station.trains_limit = cell.count
+                end
+                if cell.signal and (not Func.starts_with(cell.signal.name, "TCS_")) then
                     green_signal = cell.signal
                     green_name = green_signal.name
                     green_icon = parse_signal_to_rich_text(green_signal)
@@ -183,6 +192,10 @@ local function RenameStation(station, player)
         local station_prefix
         if station.name == "subscriber-train-stop" then
             station_prefix = "Supply"
+        elseif station.name == "publisher-train-stop" then
+            station_prefix = "Request"
+        elseif station.name == "outpost-train-stop" then
+            station_prefix = "Outpost"
         else
             station_prefix = "Load"
         end
@@ -204,9 +217,9 @@ local function RenameStation(station, player)
             end
         end
 
-        if station.name == "train-stop" then
+        if station.name == "train-stop" or station.name == "publisher-train-stop" or station.name == "outpost-train-stop" then
             local station_names = {}
-            local stations = station.surface.find_entities_filtered({name = "train-stop"})
+            local stations = station.surface.find_entities_filtered({name = {"train-stop", "publisher-train-stop", "outpost-train-stop"}})
             for _, train_stop in pairs(stations) do
                 station_names[train_stop.backer_name] = true
             end
@@ -257,7 +270,7 @@ local function OnConfigurationChanged()
 end
 
 local function OnEntityRenamed(e)
-    if (e.entity.name ~= "subscriber-train-stop" and e.entity.name ~= "train-stop") or e.by_script then
+    if (e.entity.name ~= "outpost-train-stop" and e.entity.name ~= "publisher-train-stop" and e.entity.name ~= "subscriber-train-stop" and e.entity.name ~= "train-stop") or e.by_script then
         return
     end
     local player = nil
@@ -268,7 +281,7 @@ local function OnEntityRenamed(e)
 end
 
 local function OnPlayerRotatedEntity(e)
-    if e.entity and (e.entity.name == "subscriber-train-stop" or e.entity.name == "train-stop") then
+    if e.entity and (e.entity.name == "outpost-train-stop" or e.entity.name == "publisher-train-stop" or e.entity.name == "subscriber-train-stop" or e.entity.name == "train-stop") then
         local player = nil
         if e.player_index then
             player = game.players[e.player_index]

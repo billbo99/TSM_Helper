@@ -91,17 +91,17 @@ data:extend(
             subgroup = "TrainCircuitScheduler",
             order = "cb"
         },
-        -- {
-        --     type = "virtual-signal",
-        --     name = "TCS_Wait_Circuit",
-        --     icons = {
-        --         {icon = mod .. "blank64.png", icon_size = 64},
-        --         {icon = mod .. "train-stop.png", icon_size = 64},
-        --         {icon = mod .. "red-wire.png", icon_size = 64, icon_mipmaps = 4, scale = 0.25, shift = {4, 4}}
-        --     },
-        --     subgroup = "TrainCircuitScheduler",
-        --     order = "cc"
-        -- },
+        {
+            type = "virtual-signal",
+            name = "TCS_StationLimit",
+            icons = {
+                {icon = mod .. "blank64.png", icon_size = 64},
+                {icon = mod .. "train-stop.png", icon_size = 64},
+                {icon = mod .. "signal_L.png", icon_size = 64, icon_mipmaps = 4, scale = 0.25, shift = {4, 4}}
+            },
+            subgroup = "TrainCircuitScheduler",
+            order = "cc"
+        },
         {
             type = "virtual-signal",
             name = "TCS_AND",

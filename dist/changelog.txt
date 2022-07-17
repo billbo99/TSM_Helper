@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.1
+Date: 2022-07-17
+  Changes:
+    - Added a signal to set station limit
+    - Allow virtual signals to be used in name (exclusing ones used by this mod for controls )
+    - Added renaming of Requester and Outpost stations reading from wire.
+---------------------------------------------------------------------------------------------------
 Version: 1.4.0
 Date: 2020-12-13
   Changes:
