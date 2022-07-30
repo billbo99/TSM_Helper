@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.5.1
+Date: 2022-07-30
+  Changes:
+    - Added settings so admins can set naming format for stations
+  Bugfixes:
+    - Fixed that Inactivity Wait signal set to -1 was not working as intended
+    - Fixed TCS_AND locale
+---------------------------------------------------------------------------------------------------
 Version: 1.5.0
 Date: 2022-07-30
   Changes:

@@ -68,6 +68,7 @@ function Smarts.AddStationToPriorities(station, green_name, red_name)
                 TCS_table["full"] = false
                 TCS_flag = true
             end
+
             if sn == "TCS_Wait_Until_Empty" and count < 0 then
                 TCS_table["empty"] = false
                 TCS_flag = true
@@ -77,7 +78,11 @@ function Smarts.AddStationToPriorities(station, green_name, red_name)
                 TCS_table["inactivity"] = true
                 TCS_table["inact_int"] = count
                 TCS_flag = true
+            elseif sn == "TCS_Inactivity" and count < 0 then
+                TCS_table["inactivity"] = false
+                TCS_flag = true
             end
+
             if sn == "TCS_Wait_Timer" and count > 0 then
                 TCS_table["wait_timer"] = true
                 TCS_table["wait_int"] = count
@@ -133,51 +138,52 @@ function Smarts.RenameStation(station)
     end
 
     if green_icon or red_icon then
-        if settings.global["TH_verbose_station_names"].value == false then
-            green_text = nil
-            red_text = nil
-        end
+        -- if settings.global["TH_verbose_station_names"].value == false then
+        --     green_text = nil
+        --     red_text = nil
+        -- end
 
         local station_prefix
         if station.name == "subscriber-train-stop" then
-            station_prefix = "Supply"
+            station_name_format = settings.global["TH-subscriber-train-stop"].value
         elseif station.name == "publisher-train-stop" then
-            station_prefix = "Request"
+            station_name_format = settings.global["TH-publisher-train-stop"].value
         elseif station.name == "outpost-train-stop" then
-            station_prefix = "Outpost"
+            station_name_format = settings.global["TH-outpost-train-stop"].value
         else
-            station_prefix = "Load"
+            station_name_format = settings.global["TH-train-stop"].value
         end
+
+        if station_name_format == nil or #station_name_format == 0 then return end
 
         local station_backer_name
         if (green_icon and (red_icon == green_icon or not red_icon)) or (red_icon and (red_icon == green_icon or not green_icon)) then
-            local text = green_text or red_text or nil
-            local icon = green_icon or red_icon
-            if text then
-                station_backer_name = station_prefix .. " " .. icon .. " (" .. text .. ")"
-            else
-                station_backer_name = station_prefix .. " " .. icon
-            end
+            local icon = green_signal or red_signal
+            local name = lib.find_name_in_flib_dictonary(icon.name, icon.type)
+            station_backer_name = lib.parse_string(station_name_format, { lib.parse_signal_to_rich_text(icon), '**SKIP**', name })
         elseif green_icon and red_icon and red_icon ~= green_icon then
-            if green_text then
-                station_backer_name = station_prefix .. " " .. green_icon .. red_icon .. " (" .. green_text .. ")"
-            else
-                station_backer_name = station_prefix .. " " .. green_icon .. red_icon
-            end
+            local name = lib.find_name_in_flib_dictonary(green_signal.name, green_signal.type)
+            station_backer_name = lib.parse_string(station_name_format, { lib.parse_signal_to_rich_text(green_signal), lib.parse_signal_to_rich_text(red_signal), name })
         end
 
         if station.name == "train-stop" or station.name == "publisher-train-stop" or station.name == "outpost-train-stop" then
             local station_names = {}
-            local stations = station.surface.find_entities_filtered({ name = { "train-stop", "publisher-train-stop", "outpost-train-stop" } })
+            local stations = station.surface.get_train_stops()
             for _, train_stop in pairs(stations) do
-                station_names[train_stop.backer_name] = true
+                if station_names[train_stop.backer_name] then
+                    station_names[train_stop.backer_name] = station_names[train_stop.backer_name] + 1
+                else
+                    station_names[train_stop.backer_name] = 1
+                end
             end
 
-            local index = 1
-            while station_names[station_backer_name .. " " .. tostring(index)] do
-                index = index + 1
+            if station_names[station_backer_name] and station_names[station_backer_name] > 0 then
+                local index = 1
+                while station_names[station_backer_name .. " " .. tostring(index)] do
+                    index = index + 1
+                end
+                station_backer_name = station_backer_name .. " " .. tostring(index)
             end
-            station_backer_name = station_backer_name .. " " .. tostring(index)
         end
 
         station.backer_name = station_backer_name

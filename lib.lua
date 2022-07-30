@@ -1,5 +1,26 @@
 local lib = {}
 
+---@param str string
+---@param args table
+---@return string
+lib.parse_string = function(str, args)
+    local count = 1
+    for _, arg in pairs(args) do
+        local var = '@' .. count
+        local s, e = string.find(str, var)
+        while s ~= nil and e ~= nil do
+            if arg == '**SKIP**' then
+                str = string.gsub(str, " " .. var, "")
+            else
+                str = string.gsub(str, var, arg)
+            end
+            s, e = string.find(str, var)
+        end
+        count = count + 1
+    end
+    return str
+end
+
 ---Find a name in flib's locales dictonary
 ---@param item_name string
 ---@param item_type string
