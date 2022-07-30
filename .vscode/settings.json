@@ -1,0 +1,25 @@
+{
+    "Lua.diagnostics.globals": [
+        "mods",
+        "table_size",
+        "log",
+        "localised_print",
+        "serpent",
+        "__DebugAdapter",
+        "__Profiler"
+    ],
+    "Lua.runtime.version": "Lua 5.2",
+    "factorio.versions": [
+        {
+            "name": "server.test",
+            "factorioPath": "d:\\dev\\server.test\\bin\\x64\\factorio.exe",
+            "active": true
+        }
+    ],
+    "Lua.workspace.library": [
+        "d:\\dev\\server.test\\mods",
+        "d:\\dev\\server.test\\data",
+        "d:\\dev\\server.test\\data\\core\\lualib",
+        "d:\\dev\\code\\.factorio"
+    ],
+}

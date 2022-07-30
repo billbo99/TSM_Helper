@@ -1,69 +1,17 @@
-local Func = require("func")
-local event = require("__flib__.event")
-local translation = require("__flib__.translation")
-local player_data = require("raiguard.player-data")
-local global_data = require("raiguard.global-data")
-local on_tick = require("raiguard.on-tick")
+local lib = require("lib")
+local Smarts = {} ---@class Smarts
 
-local function parse_signal_to_rich_text(signal_data)
-    local text_type = signal_data.type
-    if text_type == "virtual" then
-        text_type = "virtual-signal"
-    end
+Smarts.valid_train_stops = { "outpost-train-stop", "publisher-train-stop", "subscriber-train-stop", "train-stop" }
 
-    return string.format("[img=%s/%s]", text_type, signal_data.name)
-end
-
-local function InitState()
-    global.SupplyStations = global.SupplyStations or {}
-    global.entityTranslations = global.entityTranslations or {}
-
-    for _, surface in pairs(game.surfaces) do
-        local stations = surface.find_entities_filtered({name = "subscriber-train-stop"})
-        for _, station in pairs(stations) do
-            if not global.SupplyStations[station.unit_number] then
-                global.SupplyStations[station.unit_number] = {entity = station, renamed = false}
-            end
-        end
-    end
-end
-
-local function OnStringTranslated(e)
-    local names, finished = translation.process_result(e)
-    if names then
-        local player_table = global.players[e.player_index]
-        local translations = player_table.translations
-        local internal_names
-        if names.items then
-            internal_names = names.items
-        elseif names.fluids then
-            internal_names = names.fluids
-        elseif names.virtual_signals then
-            internal_names = names.virtual_signals
-        end
-
-        for i = 1, #internal_names do
-            local internal_name = internal_names[i]
-            translations[internal_name] = e.translated and e.result or internal_name
-            global.entityTranslations[internal_name] = e.translated and e.result or internal_name
-        end
-    end
-    if finished then
-        local player_table = global.players[e.player_index]
-        player_table.flags.translate_on_join = false
-        player_table.flags.show_message_after_translation = false
-    end
-end
-
-local function AddStationToPriorities(station, green_name, red_name)
+---@param station LuaEntity
+function Smarts.AddStationToPriorities(station, green_name, red_name)
     local tsm_priorities = nil -- remote.call("TSM-API", "list_priorities", station.surface.name)
-    if
-        pcall(
-            function()
-                remote.call("TSM-API", "list_priorities", station.surface.name)
-            end
-        )
-     then
+    if pcall(
+        function()
+            remote.call("TSM-API", "list_priorities", station.surface.name)
+        end
+    )
+    then
         tsm_priorities = remote.call("TSM-API", "list_priorities", station.surface.name)
     else
         tsm_priorities = {}
@@ -88,21 +36,21 @@ local function AddStationToPriorities(station, green_name, red_name)
                 end
             end
             if not flag then
-                remote.call("TSM-API", "append_station", green_name, red_name, {station.backer_name}, station.surface.name)
+                remote.call("TSM-API", "append_station", green_name, red_name, { station.backer_name }, station.surface.name)
                 station.force.print(string.format("%s was automatically added to TSM priority", station.backer_name))
             end
         end
     elseif not tsm_priorities[green_name] or (tsm_priorities[green_name] and not tsm_priorities[green_name][red_name]) then
-        remote.call("TSM-API", "define_new_priority", green_name, red_name, {station.backer_name}, station.surface.name)
+        remote.call("TSM-API", "define_new_priority", green_name, red_name, { station.backer_name }, station.surface.name)
         station.force.print(string.format("%s was automatically created as a new TSM priority", station.backer_name))
     end
 
-    local TCS_table = {rb_or = true, inc_ef = true, empty = true, full = false, inactivity = true, inact_int = 5, wait_timer = false, wait_int = 30}
+    local TCS_table = { rb_or = true, inc_ef = true, empty = true, full = false, inactivity = true, inact_int = 5, wait_timer = false, wait_int = 30 }
     local TCS_flag = false
     local signals = station.get_merged_signals()
     for _, row in pairs(signals) do
-        local count = row.count
-        if row.signal and row.signal.type == "virtual" and Func.starts_with(row.signal.name, "TCS_") then
+        local count = row.count ---@cast count uint
+        if row.signal and row.signal.type == "virtual" and lib.starts_with(row.signal.name, "TCS_") then
             local sn = row.signal.name
             if sn == "TCS_StationLimit" and count > 0 then
                 station.trains_limit = count
@@ -146,7 +94,8 @@ local function AddStationToPriorities(station, green_name, red_name)
     end
 end
 
-local function RenameStation(station, player)
+---@param station LuaEntity
+function Smarts.RenameStation(station)
     local red_signal, green_signal, red_icon, green_icon, green_text, red_text, red_name, green_name
 
     local cb = station.get_or_create_control_behavior()
@@ -157,11 +106,11 @@ local function RenameStation(station, player)
                 if cell.signal and cell.signal.name == "TCS_StationLimit" and cell.count > 0 then
                     station.trains_limit = cell.count
                 end
-                if cell.signal and (not Func.starts_with(cell.signal.name, "TCS_")) then
+                if cell.signal and (not lib.starts_with(cell.signal.name, "TCS_")) then
                     red_signal = cell.signal
                     red_name = red_signal.name
-                    red_icon = parse_signal_to_rich_text(red_signal)
-                    red_text = global.entityTranslations[red_name] or red_name
+                    red_icon = lib.parse_signal_to_rich_text(red_signal)
+                    red_text = lib.find_name_in_flib_dictonary(red_signal.name, red_signal.type) or red_name
                 end
             end
         end
@@ -173,11 +122,11 @@ local function RenameStation(station, player)
                 if cell.signal and cell.signal.name == "TCS_StationLimit" and cell.count > 0 then
                     station.trains_limit = cell.count
                 end
-                if cell.signal and (not Func.starts_with(cell.signal.name, "TCS_")) then
+                if cell.signal and (not lib.starts_with(cell.signal.name, "TCS_")) then
                     green_signal = cell.signal
                     green_name = green_signal.name
-                    green_icon = parse_signal_to_rich_text(green_signal)
-                    green_text = global.entityTranslations[green_name] or green_name
+                    green_icon = lib.parse_signal_to_rich_text(green_signal)
+                    green_text = lib.find_name_in_flib_dictonary(green_signal.name, green_signal.type) or green_name
                 end
             end
         end
@@ -219,7 +168,7 @@ local function RenameStation(station, player)
 
         if station.name == "train-stop" or station.name == "publisher-train-stop" or station.name == "outpost-train-stop" then
             local station_names = {}
-            local stations = station.surface.find_entities_filtered({name = {"train-stop", "publisher-train-stop", "outpost-train-stop"}})
+            local stations = station.surface.find_entities_filtered({ name = { "train-stop", "publisher-train-stop", "outpost-train-stop" } })
             for _, train_stop in pairs(stations) do
                 station_names[train_stop.backer_name] = true
             end
@@ -234,93 +183,30 @@ local function RenameStation(station, player)
         station.backer_name = station_backer_name
 
         if station and station.valid and station.name == "subscriber-train-stop" and (green_name or red_name) then
-            AddStationToPriorities(station, green_name, red_name)
+            Smarts.AddStationToPriorities(station, green_name, red_name)
         end
     end
 end
 
-local function OnStartup()
-    translation.init()
-    global_data.init()
-    for i in pairs(game.players) do
-        player_data.init(i)
-    end
-    InitState()
-end
-
-local function OnConfigurationChanged()
-    InitState()
-    translation.init()
-    on_tick.update()
-
-    global_data.build_prototypes()
-
-    if game.players then
-        if not global.players then
-            global.players = {}
-            for i, _ in pairs(game.players) do
-                player_data.init(i, true)
-            end
-        end
-        for i, player in pairs(game.players) do
-            local player_table = global.players[i]
-            player_data.refresh(player, player_table)
+---@param event EventData.on_entity_renamed
+function Smarts.OnEntityRenamed(event)
+    if event.by_script then return end
+    if event.entity and event.entity.valid then
+        local name = event.entity.name
+        if lib.contains(Smarts.valid_train_stops, name) then
+            Smarts.RenameStation(event.entity)
         end
     end
 end
 
-local function OnEntityRenamed(e)
-    if (e.entity.name ~= "outpost-train-stop" and e.entity.name ~= "publisher-train-stop" and e.entity.name ~= "subscriber-train-stop" and e.entity.name ~= "train-stop") or e.by_script then
-        return
-    end
-    local player = nil
-    if e.player_index then
-        player = game.players[e.player_index]
-    end
-    RenameStation(e.entity, player)
-end
-
-local function OnPlayerRotatedEntity(e)
-    if e.entity and (e.entity.name == "outpost-train-stop" or e.entity.name == "publisher-train-stop" or e.entity.name == "subscriber-train-stop" or e.entity.name == "train-stop") then
-        local player = nil
-        if e.player_index then
-            player = game.players[e.player_index]
-        end
-        RenameStation(e.entity, player)
-    end
-end
-
-local function OnLoad()
-    on_tick.update()
-end
-
-local function OnPlayerCreated(e)
-    player_data.init(e.player_index)
-end
-
-local function OnPlayerJoinedGame(e)
-    local player_table = global.players[e.player_index]
-    if player_table.flags.translate_on_join then
-        player_table.flags.translate_on_join = false
-        player_data.start_translations(e.player_index)
-    end
-end
-
-local function OnPlayerLeftGame(e)
-    if e.player_index then
-        if translation.is_translating(e.player_index) then
-            translation.cancel(e.player_index)
+---@param event EventData.on_player_rotated_entity
+function Smarts.OnPlayerRotatedEntity(event)
+    if event.entity and event.entity.valid then
+        local name = event.entity.name
+        if lib.contains(Smarts.valid_train_stops, name) then
+            Smarts.RenameStation(event.entity)
         end
     end
 end
 
-event.on_init(OnStartup)
-event.on_load(OnLoad)
--- event.on_nth_tick(60 * 60, OnNthTick)
-event.on_configuration_changed(OnConfigurationChanged)
-event.on_string_translated(OnStringTranslated)
-event.on_entity_renamed(OnEntityRenamed)
-event.on_player_joined_game(OnPlayerJoinedGame)
-event.on_player_left_game(OnPlayerLeftGame)
-event.on_player_created(OnPlayerCreated)
-event.on_player_rotated_entity(OnPlayerRotatedEntity)
+return Smarts
